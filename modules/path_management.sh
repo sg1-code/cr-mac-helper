@@ -2,6 +2,12 @@
 
 # path_management.sh - Path management functions
 
+# Colors for output
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+YELLOW='\033[0;33m'
+NC='\033[0m' # No Color
+
 # Main path management function
 path_management() {
   echo -e "\n${BLUE}=== Path Management ===${NC}"
@@ -13,13 +19,18 @@ path_management() {
   echo "4. Return to main menu"
   echo -n "Select an option: "
   read -r path_choice
+
+  # Validate input
+  if ! [[ "$path_choice" =~ ^[1-4]$ ]]; then
+    log --warn "Invalid choice. Please select a valid option."
+    return
+  fi
   
   case "$path_choice" in
     1) cleanup_broken_path ;;
     2) remove_tool_references ;;
     3) fix_path_issues ;;
     4) return ;;
-    *) log --warn "Invalid choice. Returning to main menu."; return ;;
   esac
 }
 
@@ -35,11 +46,7 @@ cleanup_broken_path() {
   IFS=':' read -r -a path_array <<< "$original_path"
   for dir in "${path_array[@]}"; do
     if [[ -d "$dir" ]]; then
-      if [[ -n "$new_path" ]]; then
-        new_path="$new_path:$dir"
-      else
-        new_path="$dir"
-      fi
+      new_path="${new_path:+$new_path:}$dir"
     else
       log --warn "Broken PATH entry: $dir"
       broken_count=$((broken_count + 1))
@@ -85,12 +92,18 @@ cleanup_broken_path() {
     echo -n "Select file to edit (or 0 for all): "
     read -r file_num
     
+    # Validate input
+    if ! [[ "$file_num" =~ ^[0-9]+$ ]]; then
+      log --warn "Invalid selection. Please enter a number."
+      return
+    fi
+
     if [[ $file_num -eq 0 ]]; then
       # Edit all found config files
       for config_file in "${config_files[@]}"; do
         cleanup_path_in_file "$config_file" "$broken_list"
       done
-    elif [[ $file_num -le ${#config_files[@]} ]]; then
+    elif [[ $file_num -le ${#config_files[@]} && $file_num -gt 0 ]]; then
       # Edit selected config file
       cleanup_path_in_file "${config_files[$file_num-1]}" "$broken_list"
     else
@@ -116,7 +129,8 @@ cleanup_path_in_file() {
   backup_item "$file"
   
   # Process file line by line, adjust PATH entries
-  local tmp_file=$(mktemp)
+  local tmp_file
+  tmp_file=$(mktemp)
   local modified=0
   
   while IFS= read -r line; do
@@ -133,13 +147,17 @@ cleanup_path_in_file() {
           if [[ "$line" == *"PATH=\"\$PATH:"* ]]; then
             # Format: PATH="$PATH:/broken/path"
             # Remove the broken entry from the line
-            local broken_pattern=$(echo "$broken_entry" | sed 's/[\/&]/\\&/g')
-            local modified_line=$(echo "$line" | sed "s/:$broken_pattern//" | sed "s/$broken_pattern://")
+            local broken_pattern
+            broken_pattern=$(echo "$broken_entry" | sed 's/[\/&]/\\&/g')
+            local modified_line
+            modified_line=$(echo "$line" | sed "s/:$broken_pattern//" | sed "s/$broken_pattern://")
             echo "$modified_line" >> "$tmp_file"
           elif [[ "$line" == *"PATH="* && "$line" == *":"* ]]; then
             # Format: PATH="/path:/broken/path:/other/path"
-            local broken_pattern=$(echo "$broken_entry" | sed 's/[\/&]/\\&/g')
-            local modified_line=$(echo "$line" | sed "s/:$broken_pattern//" | sed "s/$broken_pattern://")
+            local broken_pattern
+            broken_pattern=$(echo "$broken_entry" | sed 's/[\/&]/\\&/g')
+            local modified_line
+            modified_line=$(echo "$line" | sed "s/:$broken_pattern//" | sed "s/$broken_pattern://")
             echo "$modified_line" >> "$tmp_file"
           else
             # Unknown format, better not to modify
@@ -450,109 +468,4 @@ fix_path_order_in_config() {
     "/usr/local/bin"
     "/usr/local/sbin"
     "/opt/homebrew/bin"
-    "/opt/homebrew/sbin"
-  )
-  
-  # Start with user directories that exist
-  for dir in "${user_dirs[@]}"; do
-    if [[ -d "$dir" ]]; then
-      if [[ -n "$ideal_path" ]]; then
-        ideal_path="$ideal_path:$dir"
-      else
-        ideal_path="$dir"
-      fi
-    fi
-  done
-  
-  # Add system directories
-  ideal_path="$ideal_path:/usr/bin:/bin:/usr/sbin:/sbin"
-  
-  # Add any other directories from original PATH not covered above
-  IFS=':' read -r -a path_array <<< "$PATH"
-  for dir in "${path_array[@]}"; do
-    if [[ "$ideal_path" != *"$dir"* && -d "$dir" ]]; then
-      ideal_path="$ideal_path:$dir"
-    fi
-  done
-  
-  for file in "${shell_files[@]}"; do
-    if [[ -f "$file" && -w "$file" ]]; then
-      # Create backup
-      backup_item "$file"
-      
-      # Create temporary file
-      local tmp_file=$(mktemp)
-      
-      # Add content without PATH manipulations
-      grep -v "PATH=" "$file" > "$tmp_file"
-      
-      # Add optimized PATH at the end
-      echo -e "\n# Optimized PATH with user paths prioritized - added by cleanup script" >> "$tmp_file"
-      echo "export PATH=\"$ideal_path\"" >> "$tmp_file"
-      
-      # Replace original with modified file
-      run_command mv "$tmp_file" "$file"
-      log "Updated PATH order in $file"
-    fi
-  done
-  
-  # Update current session
-  export PATH="$ideal_path"
-  log "Current session PATH order updated."
-}
-
-# Helper function to add missing directories to PATH
-add_missing_dirs_to_path() {
-  local missing_dirs=("$@")
-  local current_path="$PATH"
-  
-  # Add missing directories to PATH
-  for dir in "${missing_dirs[@]}"; do
-    current_path="$dir:$current_path"
-  done
-  
-  # Update current session
-  export PATH="$current_path"
-  
-  # Update shell config files
-  local shell_files=(
-    "$HOME/.bash_profile"
-    "$HOME/.bashrc"
-    "$HOME/.zshrc"
-    "$HOME/.profile"
-  )
-  
-  # Determine primary shell config
-  local primary_config=""
-  if [[ "$SHELL" == *"zsh"* && -f "$HOME/.zshrc" ]]; then
-    primary_config="$HOME/.zshrc"
-  elif [[ "$SHELL" == *"bash"* ]]; then
-    if [[ -f "$HOME/.bash_profile" ]]; then
-      primary_config="$HOME/.bash_profile"
-    elif [[ -f "$HOME/.bashrc" ]]; then
-      primary_config="$HOME/.bashrc"
-    fi
-  elif [[ -f "$HOME/.profile" ]]; then
-    primary_config="$HOME/.profile"
-  fi
-  
-  if [[ -n "$primary_config" ]]; then
-    # Create backup
-    backup_item "$primary_config"
-    
-    # Add missing directories to PATH in config
-    local tmp_file=$(mktemp)
-    cat "$primary_config" > "$tmp_file"
-    
-    echo -e "\n# Additional directories added to PATH by cleanup script" >> "$tmp_file"
-    for dir in "${missing_dirs[@]}"; do
-      echo "export PATH=\"$dir:\$PATH\"" >> "$tmp_file"
-    done
-    
-    # Replace original with modified file
-    run_command mv "$tmp_file" "$primary_config"
-    log "Updated PATH in $primary_config"
-  else
-    log --warn "Could not determine primary shell config file to update."
-  fi
-} 
+    "/
