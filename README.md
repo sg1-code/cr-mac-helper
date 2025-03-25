@@ -62,7 +62,7 @@ The project is structured into modular shell scripts for improved organization a
 1.  **Clone or Download:** Obtain the repository using Git or download the ZIP archive.
 
     ```bash
-    git clone https://github.com/cricciuti/cr-mac-helper.git
+    git clone https://github.com/caioricciuti/cr-mac-helper.git
     cd cr-mac-helper
     ```
 
