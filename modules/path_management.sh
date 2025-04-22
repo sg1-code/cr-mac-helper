@@ -64,10 +64,14 @@ cleanup_broken_path() {
   if confirm "Remove these broken PATH entries?"; then
     # Find shell config files
     local shell_files=(
-      "$HOME/.bash_profile"
-      "$HOME/.bashrc"
-      "$HOME/.zshrc"
-      "$HOME/.profile"
+      "/etc/zprofile"
+      # "$HOME/.bash_profile"
+      # "$HOME/.bashrc"
+      "$HOME/.zsh/.zshrc"
+      "$HOME/.zsh/.zprofile"
+      "$HOME/.zshenv"
+      "$HOME/.zsh/.zlogin"
+      "$HOME/.zsh/.path"
     )
     
     # Check which config files exist
@@ -196,62 +200,67 @@ remove_tool_references() {
   local tool_ref_locations=(
     "$HOME/.bash_profile"
     "$HOME/.bashrc"
-    "$HOME/.zshrc"
-    "$HOME/.profile"
-    "$HOME/.config/fish/config.fish"
+    "$HOME/.zsh/.zprofile"
+    "$HOME/.zsh/.zshrc"
+    "$HOME/.zsh/.path"
   )
   
   # Common tool prefixes to detect
   local tool_prefixes=(
     "brew"
+    "mise"
     "nvm"
     "rvm"
     "pyenv"
     "rbenv"
-    "nodenv"
-    "jenv"
     "goenv"
     "phpenv"
-    "plenv"
     "cargo"
     "rustup"
+    "dotnet"
     "conda"
-    "heroku"
     "kubectl"
     "docker"
     "composer"
     "yarn"
     "npm"
+    "pnpm"
     "pod"
     "gem"
     "pip"
+    "pipx"
+    "uv"
+    "bun"
+    "cmake"
   )
   
   # Map of tool prefixes to installation paths
   declare -A tool_paths
-  tool_paths["brew"]="/usr/local/bin/brew /opt/homebrew/bin/brew"
+  tool_paths["brew"]="/opt/homebrew/bin/brew"
+  tool_paths["mise"]="/opt/homebrew/bin/mise"
   tool_paths["nvm"]="$HOME/.nvm/nvm.sh"
   tool_paths["rvm"]="$HOME/.rvm/scripts/rvm"
   tool_paths["pyenv"]="$HOME/.pyenv/bin/pyenv"
-  tool_paths["rbenv"]="$HOME/.rbenv/bin/rbenv"
-  tool_paths["nodenv"]="$HOME/.nodenv/bin/nodenv"
-  tool_paths["jenv"]="$HOME/.jenv/bin/jenv"
-  tool_paths["goenv"]="$HOME/.goenv/bin/goenv"
-  tool_paths["phpenv"]="$HOME/.phpenv/bin/phpenv"
-  tool_paths["plenv"]="$HOME/.plenv/bin/plenv"
+  tool_paths["rbenv"]="/opt/homebrew/bin/rbenv"
   tool_paths["cargo"]="$HOME/.cargo/bin/cargo"
   tool_paths["rustup"]="$HOME/.cargo/bin/rustup"
-  tool_paths["conda"]="/usr/local/anaconda3/bin/conda $HOME/anaconda3/bin/conda $HOME/miniconda3/bin/conda"
-  tool_paths["heroku"]="/usr/local/bin/heroku"
+  tool_paths["conda"]="/opt/homebrew/Caskroom/miniconda/base/condabin/conda"
   tool_paths["kubectl"]="/usr/local/bin/kubectl"
-  tool_paths["docker"]="/usr/local/bin/docker"
+  tool_paths["docker"]="/opt/homebrew/bin/docker"
   tool_paths["composer"]="/usr/local/bin/composer $HOME/.composer/vendor/bin/composer"
   tool_paths["yarn"]="/usr/local/bin/yarn"
-  tool_paths["npm"]="/usr/local/bin/npm"
+  tool_paths["npm"]="/usr/local/bin/npm /Users/Sami/.local/share/mise/installs/node/23.11.0/bin/npm"
   tool_paths["pod"]="/usr/local/bin/pod"
-  tool_paths["gem"]="/usr/bin/gem /usr/local/bin/gem"
-  tool_paths["pip"]="/usr/local/bin/pip /usr/bin/pip"
-  
+  tool_paths["gem"]="$HOME/.local/share/mise/installs/ruby/3.4.3/bin/gem"
+  tool_paths["pip"]="$HOME/.local/share/mise/installs/python/3.13.3/bin/pip"
+  tool_paths["pipx"]="$HOME/.local/share/mise/installs/pipx/1.7.1/bin/pipx"
+  tool_paths["uv"]="$HOME/.local/share/mise/installs/uv/0.6.16/bin/uv"
+  tool_paths["pnpm"]="$HOME/.local/share/mise/installs/pnpm/10.8.1/pnpm"
+  tool_paths["dotnet"]="$HOME/.local/share/mise/installs/dotnet/9.0.203//dotnet"
+  tool_paths["bun"]="$HOME/.local/share/mise/installs/bun/1.2.10/bin/bun"
+  tool_paths["cmake"]="$HOME/.local/share/mise/installs/cmake/4.0.1/bin/cmake"
+  tool_paths["deno"]="$HOME/.local/share/mise/installs/deno/2.2.11/bin/deno"
+
   # Check which tools are missing
   local missing_tools=()
   for tool in "${tool_prefixes[@]}"; do
@@ -502,3 +511,60 @@ fix_path_order_in_config() {
     fi
   done
 }
+
+# Helper function to add missing directories to PATH
+add_missing_dirs_to_path() {
+  local missing_dirs=("$@")
+  local current_path="$PATH"
+  
+  # Add missing directories to PATH
+  for dir in "${missing_dirs[@]}"; do
+    current_path="$dir:$current_path"
+  done
+  
+  # Update current session
+  export PATH="$current_path"
+  
+  # Update shell config files
+  local shell_files=(
+    "$HOME/.bash_profile"
+    "$HOME/.bashrc"
+    "$HOME/.zsh/.zshrc"
+    "$HOME/.zsh/.zprofile"
+    "$HOME/.zsh/.path"
+  )
+  
+  # Determine primary shell config
+  local primary_config=""
+  if [[ "$SHELL" == *"zsh"* && -f "$HOME/.zsh/.zshrc" ]]; then
+    primary_config="$HOME/.zsh/.zshrc"
+  elif [[ "$SHELL" == *"bash"* ]]; then
+    if [[ -f "$HOME/.bash_profile" ]]; then
+      primary_config="$HOME/.bash_profile"
+    elif [[ -f "$HOME/.bashrc" ]]; then
+      primary_config="$HOME/.bashrc"
+    fi
+  elif [[ -f "$HOME/.zsh/.path" ]]; then
+    primary_config="$HOME/.zsh/.path"
+  fi
+  
+  if [[ -n "$primary_config" ]]; then
+    # Create backup
+    backup_item "$primary_config"
+    
+    # Add missing directories to PATH in config
+    local tmp_file=$(mktemp)
+    cat "$primary_config" > "$tmp_file"
+    
+    echo -e "\n# Additional directories added to PATH by cleanup script" >> "$tmp_file"
+    for dir in "${missing_dirs[@]}"; do
+      echo "export PATH=\"$dir:\$PATH\"" >> "$tmp_file"
+    done
+    
+    # Replace original with modified file
+    run_command mv "$tmp_file" "$primary_config"
+    log "Updated PATH in $primary_config"
+  else
+    log --warn "Could not determine primary shell config file to update."
+  fi
+} 
