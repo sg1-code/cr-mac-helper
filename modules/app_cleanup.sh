@@ -4,7 +4,7 @@
 
 # Main app cleanup function
 app_cleanup() {
-  echo -e "\n${BLUE}=== App Cleanup ===${NC}"
+  printf "\n${BLUE}=== App Cleanup ===${NC}\n"
   check_privileges 0  # Doesn't absolutely require root
   
   # Check disk space for backups
@@ -29,7 +29,7 @@ app_cleanup() {
 
 # Process for removing a specific application
 remove_specific_app() {
-  echo -e "\n${BLUE}--- Complete App Removal ---${NC}"
+  printf "\n${BLUE}--- Complete App Removal ---${NC}\n"
   
   # Get a sorted list of installed applications, excluding system apps
   local system_apps=(
@@ -103,7 +103,7 @@ remove_specific_app() {
   log "Selected app: $app_name (Bundle ID: ${app_bundle_id:-Unknown})"
   
   # Detailed app info to help user make an informed decision
-  echo -e "\n${CYAN}=== App Details ===${NC}"
+  printf "\n${CYAN}=== App Details ===${NC}\n"
   echo "Name: $app_name"
   echo "Location: $app_path"
   echo "Size: $(du -sh "$app_path" | cut -f1)"
@@ -162,12 +162,15 @@ remove_specific_app() {
     fi
   fi
   
+  # Second pass cleanup for stubborn leftovers
+  cleanup_leftovers "$app_name" "$app_bundle_id"
+  
   log "Application removal process completed for: $app_name"
 }
 
 # Find applications that haven't been used recently
 find_unused_apps() {
-  echo -e "\n${BLUE}--- Finding Unused Applications ---${NC}"
+  printf "\n${BLUE}--- Finding Unused Applications ---${NC}\n"
   
   # Ask for days threshold
   echo -n "Show applications not accessed in how many days? [30]: "
@@ -220,7 +223,7 @@ find_unused_apps() {
   fi
   
   # Display results
-  echo -e "\n${GREEN}Found $found_apps potentially unused applications:${NC}"
+  printf "\n${GREEN}Found $found_apps potentially unused applications:${NC}\n"
   cat "$temp_file" | grep -v "^#"
   
   # Offer to select an app to remove
@@ -239,7 +242,7 @@ find_unused_apps() {
 
 # Check for broken/corrupt app bundles
 check_broken_apps() {
-  echo -e "\n${BLUE}--- Checking for Broken App Bundles ---${NC}"
+  printf "\n${BLUE}--- Checking for Broken App Bundles ---${NC}\n"
   
   # Create a temporary file for results
   local temp_file=$(mktemp)
@@ -282,7 +285,7 @@ check_broken_apps() {
   fi
   
   # Display results
-  echo -e "\n${YELLOW}Found $found_broken potentially broken applications:${NC}"
+  printf "\n${YELLOW}Found $found_broken potentially broken applications:${NC}\n"
   cat "$temp_file"
   
   # Offer to select an app to remove
@@ -298,7 +301,7 @@ find_and_remove_associated_files() {
   local app_name="$1"
   local bundle_id="$2"
   
-  echo -e "\n${BLUE}--- Finding Associated Files ---${NC}"
+  printf "\n${BLUE}--- Finding Associated Files ---${NC}\n"
   
   local search_dirs=(
     "$HOME/Library/Preferences"
@@ -344,6 +347,60 @@ find_and_remove_associated_files() {
           # Check if directory contains non-matching items
           local non_matching=$(find "$file" -not -path "*$app_name*" -not -path "*$bundle_id*" | head -n1)
           if [[ -n "$non_matching" && ! $file == *"/Contents"* ]]; then
+            # Better approach - instead of hardcoding app names, check if the directory 
+            # is specifically named after the app or likely related to it
+            
+            # Convert to lowercase for case-insensitive comparison
+            local file_basename=$(basename "$file" | tr '[:upper:]' '[:lower:]')
+            local app_name_lower=$(echo "$app_name" | tr '[:upper:]' '[:lower:]')
+            
+            # Case 1: Directory name exactly matches app name (case insensitive)
+            if [[ "$file_basename" == "$app_name_lower" ]]; then
+              echo "$file" >> "$found_file"
+              found_count=$((found_count + 1))
+              continue
+            fi
+            
+            # Case 2: Directory name contains app name as a whole word
+            if [[ "$file_basename" == *"-$app_name_lower"* || 
+                  "$file_basename" == *"$app_name_lower-"* || 
+                  "$file_basename" == *"_$app_name_lower"* || 
+                  "$file_basename" == *"$app_name_lower_"* ]]; then
+              echo "$file" >> "$found_file"
+              found_count=$((found_count + 1))
+              continue
+            fi
+            
+            # Case 3: Directory is in a standard application support location and named after the app
+            if [[ "$file" == *"/Library/Application Support/$app_name"* || 
+                  "$file" == *"/Library/Application Support/"*"$app_name"* ||
+                  "$file" == *"/Library/Caches/$app_name"* || 
+                  "$file" == *"/Library/Caches/"*"$app_name"* ||
+                  "$file" == *"/Library/Logs/$app_name"* || 
+                  "$file" == *"/Library/Logs/"*"$app_name"* ||
+                  "$file" == *"/Library/Preferences/$app_name"* ||
+                  "$file" == *"/Library/Preferences/"*"$app_name"* ||
+                  "$file" == *"/Library/Containers/$app_name"* ||
+                  "$file" == *"/Library/Containers/"*"$app_name"* ||
+                  "$file" == *"/Library/WebKit/$app_name"* ||
+                  "$file" == *"/Library/Saved Application State/$app_name"* ||
+                  "$file" == *"/Library/Application Scripts/$app_name"* ||
+                  "$file" == *"/Library/Group Containers/"*"$app_name"* ]]; then
+              echo "$file" >> "$found_file"
+              found_count=$((found_count + 1))
+              continue
+            fi
+            
+            # Case 4: For bundle ID-based directories
+            if [[ -n "$bundle_id" && 
+                  ("$file" == *"$bundle_id"* || 
+                   "$file" == *"$(echo "$bundle_id" | tr '.' '/')"*) ]]; then
+              echo "$file" >> "$found_file"
+              found_count=$((found_count + 1))
+              continue
+            fi
+            
+            # Skip directory with truly mixed content
             log --debug "Skipping directory with mixed content: $file"
             continue
           fi
@@ -366,12 +423,12 @@ find_and_remove_associated_files() {
   mv "${found_file}.sorted" "$found_file"
   
   # Display findings
-  echo -e "\n${GREEN}Found $found_count associated files:${NC}"
+  printf "\n${GREEN}Found $found_count associated files:${NC}\n"
   
   # Display with numbers for selection
   cat -n "$found_file"
   
-  echo -e "\nOptions:"
+  printf "\nOptions:\n"
   echo "1. Remove all files"
   echo "2. Select files to remove"
   echo "3. Skip file removal"
@@ -423,7 +480,7 @@ remove_launch_agents() {
   local app_name="$1"
   local bundle_id="$2"
   
-  echo -e "\n${BLUE}--- Managing Launch Agents ---${NC}"
+  printf "\n${BLUE}--- Managing Launch Agents ---${NC}\n"
   
   local launch_dirs=(
     "$HOME/Library/LaunchAgents"
@@ -477,7 +534,7 @@ remove_launch_agents() {
   fi
   
   # Display findings
-  echo -e "\n${GREEN}Found $found_count launch agents/daemons:${NC}"
+  printf "\n${GREEN}Found $found_count launch agents/daemons:${NC}\n"
   cat -n "$found_file"
   
   if ! confirm "Would you like to unload and remove these launch agents?"; then
@@ -517,7 +574,7 @@ remove_launch_agents() {
 remove_login_items() {
   local app_name="$1"
   
-  echo -e "\n${BLUE}--- Checking Login Items ---${NC}"
+  printf "\n${BLUE}--- Checking Login Items ---${NC}\n"
   
   # Check if app is in login items
   local login_items=$(osascript -e 'tell application "System Events" to get the name of every login item' 2>/dev/null)
@@ -532,4 +589,229 @@ remove_login_items() {
   else
     log "Application not found in login items."
   fi
+}
+
+# Second-pass cleanup to find and remove stubborn leftovers
+cleanup_leftovers() {
+  local app_name="$1"
+  local bundle_id="$2"
+  
+  printf "\n${BLUE}--- Finding Leftover Files (Second Pass) ---${NC}\n"
+  
+  # Specifically look in common locations where app leftovers might remain
+  local leftover_dirs=(
+    "/Applications"
+    "$HOME/Applications"
+    "$HOME/Library/Application Support"
+    "/Library/Application Support"
+    "$HOME/Library/Caches"
+    "/Library/Caches"
+    "$HOME/Library/Preferences"
+    "/Library/Preferences"
+    "$HOME/Library/LaunchAgents"
+    "/Library/LaunchAgents"
+    "/Library/LaunchDaemons"
+    "$HOME/Library/Containers"
+    "$HOME/Library/Group Containers"
+    "$HOME/Library/Saved Application State"
+  )
+  
+  # Convert app name to lowercase for case-insensitive matching
+  local app_name_lower=$(echo "$app_name" | tr '[:upper:]' '[:lower:]')
+  
+  # Create temp file for found leftovers
+  local leftovers_file=$(mktemp)
+  local found_count=0
+  
+  # Direct search for app directory in Application Support
+  # This is the most explicit and targeted approach for directories like "/Application Support/Claude/"
+  if [[ -d "$HOME/Library/Application Support/$app_name" ]]; then
+    echo "$HOME/Library/Application Support/$app_name" >> "$leftovers_file"
+    found_count=$((found_count + 1))
+  fi
+  
+  # Try with lowercase name as well
+  if [[ -d "$HOME/Library/Application Support/$(echo "$app_name" | tr '[:upper:]' '[:lower:]')" ]]; then
+    echo "$HOME/Library/Application Support/$(echo "$app_name" | tr '[:upper:]' '[:lower:]')" >> "$leftovers_file"
+    found_count=$((found_count + 1))
+  fi
+  
+  # Force more aggressive search patterns
+  for dir in "${leftover_dirs[@]}"; do
+    if [[ ! -d "$dir" ]]; then
+      continue
+    fi
+    
+    # Look for exact directory matches first (case insensitive)
+    find "$dir" -type d -depth 1 2>/dev/null | while read -r item; do
+      local item_basename=$(basename "$item" | tr '[:upper:]' '[:lower:]')
+      
+      # Exact match
+      if [[ "$item_basename" == "$app_name_lower" || "$item_basename" == "${app_name_lower}.app" ]]; then
+        echo "$item" >> "$leftovers_file"
+        found_count=$((found_count + 1))
+      # Partial/related match
+      elif [[ "$item_basename" == *"$app_name_lower"* || 
+              "$item_basename" == *"$(echo "$app_name_lower" | tr -d ' ')"* ]]; then
+        # Verify it's likely related to our app
+        if [[ ! -d "$item/Contents" || "$item" == *"/Application Support/"* || "$item" == *"/Caches/"* ]]; then
+          echo "$item" >> "$leftovers_file"
+          found_count=$((found_count + 1))
+        fi
+      fi
+    done
+    
+    # For Application Support particularly, search more aggressively
+    if [[ "$dir" == *"/Application Support" ]]; then
+      # Use find with -name for better control
+      find "$dir" -type d -name "*$app_name*" 2>/dev/null | while read -r item; do
+        echo "$item" >> "$leftovers_file"
+        found_count=$((found_count + 1))
+      done
+      
+      # Try lowercase variations
+      find "$dir" -type d -name "*$(echo "$app_name" | tr '[:upper:]' '[:lower:]')*" 2>/dev/null | while read -r item; do
+        echo "$item" >> "$leftovers_file"
+        found_count=$((found_count + 1))
+      done
+      
+      # Also try without spaces
+      find "$dir" -type d -name "*$(echo "$app_name" | tr -d ' ')*" 2>/dev/null | while read -r item; do
+        echo "$item" >> "$leftovers_file"
+        found_count=$((found_count + 1))
+      done
+      
+      # Also look for bundle ID leftovers in Application Support
+      if [[ -n "$bundle_id" ]]; then
+        find "$dir" -type d -path "*$bundle_id*" 2>/dev/null | while read -r item; do
+          echo "$item" >> "$leftovers_file"
+          found_count=$((found_count + 1))
+        done
+      fi
+    fi
+  done
+  
+  # Special handling for browser stored data for web apps
+  cleanup_browser_data "$app_name"
+  
+  # Special handling for bundle ID based folders in Library
+  if [[ -n "$bundle_id" ]]; then
+    # Convert bundle ID to possible directory path (com.example.app -> com/example/app)
+    local bundle_path=$(echo "$bundle_id" | tr '.' '/')
+    
+    for dir in "${leftover_dirs[@]}"; do
+      if [[ ! -d "$dir" ]]; then
+        continue
+      fi
+      
+      find "$dir" -type d -path "*$bundle_path*" 2>/dev/null | while read -r item; do
+        echo "$item" >> "$leftovers_file"
+        found_count=$((found_count + 1))
+      done
+    done
+  fi
+  
+  # Sort and deduplicate results
+  if [[ $found_count -gt 0 ]]; then
+    sort -u "$leftovers_file" > "${leftovers_file}.sorted"
+    mv "${leftovers_file}.sorted" "$leftovers_file"
+    
+    # Get final count
+    found_count=$(wc -l < "$leftovers_file")
+    
+    # Display findings
+    printf "\n${YELLOW}Found $found_count potential leftover files/directories:${NC}\n"
+    cat -n "$leftovers_file"
+    
+    if confirm "Would you like to remove these leftover files?"; then
+      while IFS= read -r file; do
+        backup_item "$file"
+        run_command sudo rm -rf "$file"
+        log "Removed leftover: $file"
+      done < "$leftovers_file"
+      log "Leftover cleanup completed."
+    else
+      log "Skipping leftover removal."
+    fi
+  else
+    log "No leftover files found."
+  fi
+  
+  rm -f "$leftovers_file"
+}
+
+# Function to clean up browser storage related to the app
+cleanup_browser_data() {
+  local app_name="$1"
+  local app_name_lower=$(echo "$app_name" | tr '[:upper:]' '[:lower:]')
+  
+  printf "\n${BLUE}--- Checking Browser Data ---${NC}\n"
+  
+  local browsers_dir=(
+    "$HOME/Library/Application Support/Google/Chrome"
+    "$HOME/Library/Application Support/Google/Chrome Beta"
+    "$HOME/Library/Application Support/Google/Chrome Dev"
+    "$HOME/Library/Application Support/Google/Chrome Canary"
+    "$HOME/Library/Application Support/Chromium"
+    "$HOME/Library/Application Support/BraveSoftware/Brave-Browser"
+    "$HOME/Library/Application Support/Microsoft Edge"
+    "$HOME/Library/Application Support/Firefox/Profiles"
+    "$HOME/Library/Safari"
+  )
+  
+  local browser_data_file=$(mktemp)
+  local found_count=0
+  
+  # For each browser directory
+  for browser_dir in "${browsers_dir[@]}"; do
+    if [[ ! -d "$browser_dir" ]]; then
+      continue
+    fi
+    
+    # Different handling for Firefox which has a different structure
+    if [[ "$browser_dir" == *"Firefox/Profiles"* ]]; then
+      # Find in Firefox profile storage
+      find "$browser_dir" -type d -path "*storage*" -name "*$app_name_lower*" 2>/dev/null | while read -r item; do
+        echo "$item" >> "$browser_data_file"
+        found_count=$((found_count + 1))
+      done
+    else
+      # For Chrome-based browsers
+      find "$browser_dir" -type d -path "*IndexedDB*$app_name_lower*" 2>/dev/null | while read -r item; do
+        echo "$item" >> "$browser_data_file"
+        found_count=$((found_count + 1))
+      done
+      
+      find "$browser_dir" -type d -path "*Local Storage*$app_name_lower*" 2>/dev/null | while read -r item; do
+        echo "$item" >> "$browser_data_file"
+        found_count=$((found_count + 1))
+      done
+      
+      find "$browser_dir" -type d -path "*Service Worker*$app_name_lower*" 2>/dev/null | while read -r item; do
+        echo "$item" >> "$browser_data_file"
+        found_count=$((found_count + 1))
+      done
+    fi
+  done
+  
+  if [[ $found_count -gt 0 ]]; then
+    # Display findings
+    printf "\n${YELLOW}Found $found_count browser data items related to $app_name:${NC}\n"
+    cat -n "$browser_data_file"
+    
+    if confirm "Would you like to remove browser data for $app_name?"; then
+      while IFS= read -r file; do
+        backup_item "$file"
+        run_command rm -rf "$file"
+        log "Removed browser data: $file"
+      done < "$browser_data_file"
+      log "Browser data cleanup completed."
+    else
+      log "Skipping browser data removal."
+    fi
+  else
+    log "No browser data found for $app_name."
+  fi
+  
+  rm -f "$browser_data_file"
 } 

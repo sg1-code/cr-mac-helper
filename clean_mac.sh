@@ -14,7 +14,14 @@ GREEN='\033[0;32m'
 YELLOW='\033[0;33m'
 BLUE='\033[0;34m'
 CYAN='\033[0;36m'
+MAGENTA='\033[0;35m'
+ORANGE='\033[0;33m'
 NC='\033[0m' # No Color
+
+# Force color output even in non-interactive terminals
+export CLICOLOR_FORCE=1
+# Make sure to use true colors (24-bit colors)
+export COLORTERM=truecolor
 
 # --- Path to modules ---
 MODULES_DIR="$(dirname "$0")/modules"
@@ -32,26 +39,45 @@ source "$MODULES_DIR/battery_optimization.sh"
 source "$MODULES_DIR/security_cleanup.sh"
 source "$MODULES_DIR/hidden_cleanup.sh"
 source "$MODULES_DIR/system_audit.sh"
+source "$MODULES_DIR/swift_package_management.sh"
+source "$MODULES_DIR/docker_management.sh"
+source "$MODULES_DIR/cloud_storage_management.sh"
 
 # --- Main Menu ---
 show_main_menu() {
   clear
   echo -e "${GREEN}=== CR - Mac Helper ===${NC}"
+  echo -e "${BLUE}Version 1.1 - 2025 Edition${NC}"
   echo
+  echo -e "${YELLOW}=== System Management ===${NC}"
   echo "1. App Cleanup and Management"
   echo "2. Path Management"
   echo "3. Cache and Temp File Management"
   echo "4. Login Items Management"
   echo "5. System Maintenance"
   echo "6. System Optimization"
+  
+  echo -e "\n${YELLOW}=== Network & Power ===${NC}"
   echo "7. Network Optimization"
   echo "8. Battery Optimization (MacBooks)"
+  
+  echo -e "\n${YELLOW}=== Security & Privacy ===${NC}"
   echo "9. Security Cleanup"
-  echo "10. Hidden Folders Cleanup"
-  echo "11. System Audit and Reports"
-  echo "12. Set Dry Run Mode (Currently: $DRY_RUN)"
-  echo "13. Toggle Verbose Mode (Currently: $VERBOSE)"
-  echo "14. Exit"
+  echo "10. Privacy Permissions Management"
+  
+  echo -e "\n${YELLOW}=== Storage & Cleanup ===${NC}"
+  echo "11. Hidden Folders Cleanup"
+  echo "12. System Audit and Reports"
+  echo "13. Cloud Storage Management"
+  
+  echo -e "\n${YELLOW}=== Developer Tools ===${NC}"
+  echo "14. Swift & Xcode Management"
+  echo "15. Docker Management"
+  
+  echo -e "\n${YELLOW}=== Settings ===${NC}"
+  echo "16. Set Dry Run Mode (Currently: $DRY_RUN)"
+  echo "17. Toggle Verbose Mode (Currently: $VERBOSE)"
+  echo "18. Exit"
   echo
   echo -n "Enter your choice: "
   read -r choice
@@ -66,17 +92,21 @@ show_main_menu() {
     7) network_optimization ;;
     8) battery_optimization ;;
     9) security_cleanup ;;
-    10) hidden_cleanup ;;
-    11) system_audit ;;
-    12)
+    10) check_privacy_permissions ;;
+    11) hidden_cleanup ;;
+    12) system_audit ;;
+    13) cloud_storage_management ;;
+    14) swift_package_management ;;
+    15) docker_management ;;
+    16)
       DRY_RUN=$((1 - DRY_RUN))
       log "Dry Run set to $DRY_RUN ($([ $DRY_RUN -eq 1 ] && echo 'Simulation' || echo 'Execution'))"
       ;;
-    13)
+    17)
       VERBOSE=$((1 - VERBOSE))
       log "Verbose Mode set to $VERBOSE ($([ $VERBOSE -eq 1 ] && echo 'Detailed' || echo 'Minimal'))"
       ;;
-    14) 
+    18) 
       log "Exiting CR - Mac Helper."
       exit 0 
       ;;
@@ -106,14 +136,21 @@ fi
 
 # Welcome message
 echo -e "${GREEN}=== CR - Mac Helper ===${NC}"
-echo -e "${BLUE}Version 1.0${NC}"
+echo -e "${BLUE}Version 1.1 - 2025 Edition${NC}"
 echo
-echo "This utility helps manage and clean up your macOS system."
-echo "It includes tools for application management, cache cleanup,"
-echo "system optimization, and more."
+echo "This comprehensive utility helps manage and optimize your macOS system."
+echo "It includes tools for application management, cache cleanup, security,"
+echo "cloud storage optimization, developer tools, and much more."
 echo
 echo -e "${YELLOW}IMPORTANT:${NC} This tool makes changes to your system."
 echo "Always ensure you have current backups before proceeding."
+echo
+echo -e "${CYAN}NEW FEATURES IN VERSION 1.1:${NC}"
+echo "• Enhanced privacy and security management"
+echo "• Cloud storage optimization (iCloud, Dropbox, Google Drive, OneDrive)"
+echo "• Developer tools management (Swift, Xcode, Docker)"
+echo "• Improved system auditing and reporting"
+echo "• Updated for compatibility with macOS through 2025"
 echo
 
 if confirm "Continue with CR - Mac Helper?"; then

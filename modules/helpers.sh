@@ -36,10 +36,10 @@ log() {
   
   # Terminal output with color based on log level
   case "$level" in
-    WARNING) echo -e "${YELLOW}$1${NC}" ;;
-    ERROR) echo -e "${RED}$1${NC}" ;;
-    DEBUG) echo -e "${CYAN}$1${NC}" ;;
-    *) echo -e "$1" ;;
+    WARNING) printf "${YELLOW}%s${NC}\n" "$1" ;;
+    ERROR) printf "${RED}%s${NC}\n" "$1" ;;
+    DEBUG) printf "${CYAN}%s${NC}\n" "$1" ;;
+    *) printf "%s\n" "$1" ;;
   esac
 }
 
@@ -71,7 +71,8 @@ confirm() {
   
   # Add color to prompt based on operation risk
   if [[ "$prompt" == *"dangerous"* || "$prompt" == *"remove"* || "$prompt" == *"delete"* ]]; then
-    prompt="${RED}$prompt${NC}"
+    # Use printf instead of variable substitution for better color compatibility
+    prompt=$(printf "\033[0;31m%s\033[0m" "$prompt")
   fi
   
   if [[ $timeout -gt 0 ]]; then
@@ -80,13 +81,15 @@ confirm() {
   
   while true; do
     if [[ $timeout -gt 0 ]]; then
-      read -r -t "$timeout" -p "$prompt [y/N] " response || {
+      printf "%s [y/N] " "$prompt"
+      read -r -t "$timeout" response || {
         echo
         echo "Timeout reached, using default: $default"
         [[ "$default" == "y" ]] && return 0 || return 1
       }
     else
-      read -r -p "$prompt [y/N] " response
+      printf "%s [y/N] " "$prompt"
+      read -r response
     fi
     
     case "$response" in
@@ -118,7 +121,7 @@ run_command() {
   log --debug "Executing: $cmd_str"
   
   if [[ $DRY_RUN -eq 1 ]]; then
-    echo -e "${YELLOW}DRY RUN: $cmd_str${NC}"
+    printf "${YELLOW}DRY RUN: %s${NC}\n" "$cmd_str"
     return 0
   else
     # Run with error catching
@@ -189,3 +192,54 @@ check_disk_space() {
   fi
   return 0
 } 
+
+# Force color output for all terminals
+ensure_color_output() {
+  # Check if we're in a terminal that might not show colors correctly
+  if [[ -z "$COLORTERM" || "$TERM" == "dumb" ]]; then
+    # Force ANSI colors
+    export CLICOLOR_FORCE=1
+    export COLORTERM=truecolor
+  fi
+  
+  # Check if tput is available and colors are supported
+  if command -v tput >/dev/null 2>&1 && tput colors >/dev/null 2>&1; then
+    if [[ $(tput colors) -ge 8 ]]; then
+      # Use tput for more reliable color codes
+      RED=$(tput setaf 1)
+      GREEN=$(tput setaf 2)
+      YELLOW=$(tput setaf 3)
+      BLUE=$(tput setaf 4)
+      MAGENTA=$(tput setaf 5)
+      CYAN=$(tput setaf 6)
+      ORANGE=$(tput setaf 3)
+      NC=$(tput sgr0)
+    else
+      # Simplified codes for limited terminals
+      RED='\033[31m'
+      GREEN='\033[32m'
+      YELLOW='\033[33m'
+      BLUE='\033[34m'
+      CYAN='\033[36m'
+      MAGENTA='\033[35m'
+      ORANGE='\033[33m'
+      NC='\033[0m'
+    fi
+  else
+    # Fallback to simple ANSI codes
+    RED='\033[31m'
+    GREEN='\033[32m'
+    YELLOW='\033[33m'
+    BLUE='\033[34m'
+    CYAN='\033[36m'
+    MAGENTA='\033[35m'
+    ORANGE='\033[33m'
+    NC='\033[0m'
+  fi
+  
+  # Make the color variables globally available
+  export RED GREEN YELLOW BLUE CYAN MAGENTA ORANGE NC
+}
+
+# Call at script initialization
+ensure_color_output

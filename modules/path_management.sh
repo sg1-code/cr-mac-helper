@@ -458,8 +458,7 @@ fix_path_order_in_config() {
   )
   
   # Define ideal PATH order
-  local ideal_path=""
-  local user_dirs=(
+  local ideal_path=(
     "$HOME/bin"
     "$HOME/.local/bin"
     "$HOME/.cargo/bin"
@@ -468,4 +467,38 @@ fix_path_order_in_config() {
     "/usr/local/bin"
     "/usr/local/sbin"
     "/opt/homebrew/bin"
-    "/
+    "/usr/bin"
+    "/bin"
+    "/usr/sbin"
+    "/sbin"
+  )
+  
+  # Build the ideal path string
+  local path_str=$(IFS=:; echo "${ideal_path[*]}")
+  
+  for file in "${shell_files[@]}"; do
+    if [[ -f "$file" && -w "$file" ]]; then
+      log "Checking $file for PATH order..."
+      
+      # Create backup
+      backup_item "$file"
+      
+      # Check if file contains PATH manipulation
+      if grep -q "PATH=" "$file"; then
+        log "Found PATH settings in $file"
+        
+        # Create temporary file for modified contents
+        local tmp_file=$(mktemp)
+        
+        # Add the new ordered PATH setting at the end
+        cat "$file" > "$tmp_file"
+        echo -e "\n# Reordered PATH setting added by cleanup script" >> "$tmp_file"
+        echo "export PATH=\"$(echo "$path_str" | sed 's/:/\\:/g')\" # Reordered by cleanup script" >> "$tmp_file"
+        
+        # Replace original with modified file
+        run_command mv "$tmp_file" "$file"
+        log "Updated PATH order in $file"
+      fi
+    fi
+  done
+}

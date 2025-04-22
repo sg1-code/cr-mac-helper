@@ -1,120 +1,128 @@
 # CR - Mac Helper
 
+**Version 1.1**
+
 ## Overview
 
-CR - Mac Helper is a personal project designed to streamline Mac maintenance and management.  It's born out of the need to automate cleaning, auditing, and optimizing my macOS environment after years of installing, uninstalling, and experimenting with countless applications and tools. This script helps keep track of system health, remove unnecessary files, and generally keep my Mac running smoothly. Sharing is caring, so here it is!
+CR - Mac Helper is a personal project designed to streamline Mac maintenance and management. It's born out of the need to automate cleaning, auditing, and optimizing my macOS environment after years of installing, uninstalling, and experimenting with countless applications and tools. This script helps keep track of system health, remove unnecessary files, and generally keep my Mac running smoothly. Sharing is caring, so here it is!
 
-**Disclaimer:** This is a personal tool, use it at your own risk.  While efforts have been made to ensure safety, I (Caio Ricciuti) am not responsible for any data loss or system instability resulting from the use of this script.
-** Always back up your system before making changes. ** 
+**Disclaimer:** This is a personal tool, use it at your own risk. While efforts have been made to ensure safety, I (Caio Ricciuti) am not responsible for any data loss or system instability resulting from the use of this script.
+**Always back up your system before making changes.**
 
 ## Why This Script?
 
-As a data engineer and developer, I've installed a world collection of apps, software, tools, and frameworks on my Mac. Over time, this led to a cluttered (most of the time for my mistakes and lack of organization/knowledge about a tool or application), system that was difficult to maintain. Existing tools often lacked the customization and specific functionalities I needed. Plus, I wanted to avoid installing even *more* software if possible! This script is my solution for a tailored, hands-on approach to my Mac maintenance.
+As a data engineer and developer, I've installed a world collection of apps, software, tools, and frameworks on my Mac. Over time, this led to a cluttered system that was difficult to maintain, often due to leftover files or lack of knowledge about proper uninstallation. Existing tools often lacked the customization and specific functionalities I needed. Plus, I wanted to avoid installing even *more* software if possible! This script is my solution for a tailored, hands-on approach to my Mac maintenance.
 
 ## Key Features
 
-*   **App Cleanup and Management:** Thoroughly remove applications and their associated files, including preferences, caches, and support documents.
+### System Management
 
-*   **Path Management:**  Inspect and repair broken or redundant entries in your system's PATH environment variable, ensuring commands are found correctly.
+*   **App Cleanup and Management:** *Improved in v1.1!* Thoroughly remove applications and their associated files, including preferences, caches, support documents, browser data, and other leftovers across standard system locations. Uses smarter detection logic for better results.
+*   **Path Management:** Inspect and repair broken or redundant entries in your system's PATH environment variable.
+*   **Cache and Temp File Management:** Clear out accumulated system and application caches, as well as temporary files.
+*   **Login Items Management:** Review and control applications launching automatically at startup.
+*   **System Maintenance:** Execute essential maintenance tasks like verifying disk permissions and running periodic scripts.
+*   **System Optimization:** Fine-tune system settings for performance enhancement.
 
-*   **Cache and Temp File Management:** Clear out accumulated system and application caches, as well as temporary files, to free up disk space and improve performance.
+### Network & Power
 
-*   **Login Items Management:**  Review and control which applications launch automatically at startup, reducing boot times and improving system responsiveness. (Needs more work, I'm not getting it quite right yet...)
+*   **Network Optimization:** Reset network configurations and optimize DNS settings.
+*   **Battery Optimization (for MacBooks):** Implement power-saving measures.
 
-*   **System Maintenance:** Execute essential system maintenance tasks such as verifying disk permissions, running periodic maintenance scripts, and rebuilding Launch Services database.
+### Security & Privacy (New in v1.1)
 
-*   **System Optimization:** Fine-tune system settings to enhance performance, including animation speed adjustments and memory management tweaks.
+*   **Security Cleanup:** Audit and enhance system security settings.
+*   **Privacy Permissions Management:** Review and control application access to sensitive data.
 
-*   **Network Optimization:** Reset network configurations, optimize DNS settings for faster browsing, and scan for devices on your local network.
+### Storage & Cleanup
 
-*   **Battery Optimization (for MacBooks):**  Implement power-saving measures to extend battery life on MacBook devices.
+*   **Hidden Folders Cleanup:** Identify and remove remnants from uninstalled applications in hidden home directory folders.
+*   **System Audit and Reports:** *Enhanced in v1.1!* Generate comprehensive HTML reports with interactive charts for system visualization.
+*   **Cloud Storage Management (New in v1.1):** Optimize local storage used by iCloud, Dropbox, Google Drive, and OneDrive.
 
-*   **Security Cleanup:** Audit and enhance system security settings to mitigate potential vulnerabilities and remove potentially harmful files.
+### Developer Tools (New in v1.1)
 
-*   **Hidden Folders Cleanup:** Identify and remove leftover files and directories from previously uninstalled applications located in hidden folders within your home directory.
-
-*   **System Audit and Reports:** Generate comprehensive HTML reports, including interactive charts, to visualize system status, disk usage, and potential issues.
+*   **Swift & Xcode Management:** Clean Swift Package Manager caches, manage global Swift packages, and clean Xcode build data.
+*   **Docker Management:** Manage Docker containers, images, volumes, and clean up resources.
 
 ## Project Structure
 
-The project is structured into modular shell scripts for improved organization and maintainability:
+The project is structured into modular shell scripts:
 
 ```
 .
-├── clean_mac.sh        # Main script: entry point that orchestrates module loading and execution
+├── clean_mac.sh        # Main script: entry point and menu
 ├── modules/
-│   ├── helpers.sh      # Collection of common utility functions used across modules
-│   ├── app_cleanup.sh  # Functions for application management and removal
-│   ├── path_management.sh # Functions for managing the system's PATH environment variable
-│   ├── cache_cleanup.sh # Functions for cleaning system and application caches and temporary files
-│   ├── login_items.sh  # Functions for managing startup applications and login items
-│   ├── system_maintenance.sh # Functions for performing system maintenance tasks
-│   ├── system_optimization.sh # Functions for optimizing system performance
-│   ├── network_optimization.sh # Functions for network configuration and optimization
-│   ├── battery_optimization.sh # Functions for battery optimization (MacBooks)
-│   ├── security_cleanup.sh # Functions for security auditing and cleanup
-│   ├── hidden_cleanup.sh # Functions for cleaning remnants in hidden folders
-│   └── system_audit.sh # Functions for system auditing and report generation
+│   ├── helpers.sh      # Common utility functions
+│   │
+│   ├── # System Management
+│   ├── app_cleanup.sh  # Application management and removal
+│   ├── path_management.sh # PATH environment variable management
+│   ├── cache_cleanup.sh # Cache and temporary file cleaning
+│   ├── login_items.sh  # Startup/login item management
+│   ├── system_maintenance.sh # System maintenance tasks
+│   ├── system_optimization.sh # System performance optimization
+│   │
+│   ├── # Network & Power
+│   ├── network_optimization.sh # Network configuration and optimization
+│   ├── battery_optimization.sh # Battery optimization (MacBooks)
+│   │
+│   ├── # Security & Privacy (New in v1.1)
+│   ├── security_cleanup.sh # Security auditing and cleanup
+│   │
+│   ├── # Storage & Cleanup
+│   ├── hidden_cleanup.sh # Cleanup of remnants in hidden folders
+│   ├── system_audit.sh # System auditing and report generation
+│   ├── cloud_storage_management.sh # Cloud storage optimization (New in v1.1)
+│   │
+│   ├── # Developer Tools (New in v1.1)
+│   ├── swift_package_management.sh # Swift/Xcode cleanup and management
+│   └── docker_management.sh # Docker management and optimization
 ```
 
 ## Usage
 
-1.  **Clone or Download:** Obtain the repository using Git or download the ZIP archive.
-
+1.  **Clone or Download:**
     ```bash
     git clone https://github.com/caioricciuti/cr-mac-helper.git
     cd cr-mac-helper
     ```
-
-2.  **Make Executable:** Grant execute permissions to the main script.
-
+2.  **Make Executable:**
     ```bash
     chmod +x clean_mac.sh
     ```
-
-3.  **Run the Script:** Execute the script from your terminal.
-
+3.  **Run the Script:**
     ```bash
     ./clean_mac.sh
     ```
-
-4.  **Follow the Prompts:**  The script will guide you through the available modules and features via interactive prompts.
+4.  **Follow the Prompts:** The script guides you through modules via interactive prompts.
 
 ## Important Notes and Warnings
 
-*   **Backups are Crucial:**  *Always* create a full backup of your system before running this script. Data loss is *always* a possibility, no matter how carefully the script is designed.  **You are responsible for your data.**
-
-*   **Privileges:** Some operations require `root` or `sudo` privileges. The script will prompt you when elevated access is needed. Be cautious when granting these privileges.
-
-*   **Dry Run Mode:** Utilize "Dry Run" mode (if available for a specific function) to preview the changes that *would* be made without actually modifying the system. This helps prevent unintended consequences.
-
-*   **Understand the Code:**  Review the code in the modules you plan to use.  Understanding what the script is doing is the best way to prevent problems.
+*   **Backups are Crucial:** *Always* create a full backup of your system before running this script. Data loss is *always* a possibility. **You are responsible for your data.**
+*   **Privileges:** Some operations require `root` or `sudo`. The script prompts when needed. Be cautious.
+*   **Dry Run Mode:** Use "Dry Run" mode (where available) to preview changes without applying them.
+*   **Understand the Code:** Review the code in the modules you intend to use.
 
 ## Development
 
 ### Contributing
 
-Contributions are **VERY** welcome! Feel free to submit pull requests with new features, bug fixes, or improvements.
+Contributions are **VERY** welcome! Submit pull requests with new features, bug fixes, or improvements.
 
 ### Adding New Features
 
-1.  **Create a Module:** Create a new `.sh` file in the `modules/` directory for your feature.
-
-2.  **Implement Functions:** Add your shell functions to the new module.
-
-3.  **Integrate:**  Source the new module in the main `clean_mac.sh` script to make its functions available.
+1.  **Create a Module:** Add a new `.sh` file in `modules/`.
+2.  **Implement Functions:** Add your shell functions.
+3.  **Integrate:** Source the new module in `clean_mac.sh`.
 
 ### Coding Standards
 
-*   **Descriptive Names:** Use meaningful and descriptive names for functions and variables.
-
-*   **Comments:**  Comment your code, especially for complex or critical operations.  Explain the *why* not just the *what*.
-
-*   **Safety Checks:** Implement robust safety checks and confirmations before performing any destructive operations.
-
-*   **Dry Run:**  Provide a "Dry Run" or "Preview" mode for functions that modify the system, allowing users to see the intended changes before they are applied.
-
-*   **Error Handling:** Include error handling to gracefully manage unexpected situations.
+*   **Descriptive Names:** Use meaningful function and variable names.
+*   **Comments:** Explain the *why*, not just the *what*.
+*   **Safety Checks:** Implement robust safety checks and confirmations before destructive operations.
+*   **Dry Run:** Provide a "Dry Run" or "Preview" mode where applicable.
+*   **Error Handling:** Include error handling for unexpected situations.
 
 ## License
 
